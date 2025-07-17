@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-900 text-white">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code Step Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+  <!-- Prism.js dark theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #000000;
+      color: #ffffff;
+      font-weight: 400;
+    }
+    
+    .main-container {
+      background-color: #000000;
+      min-height: 100vh;
+      display: flex;
+    }
+    textarea::-webkit-scrollbar { width: 6px; }
+    textarea::-webkit-scrollbar-thumb { background-color: #555; border-radius: 3px; }
+    .variable-card { background: #374151; border-left: 4px solid #3b82f6; }
+    .progress-bar { background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%); }
+    .code-display {
+      background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .prism-highlight-line {
+      background: linear-gradient(90deg, #14532d 0%, #22c55e 100%);
+      opacity: 0.25;
+      display: block;
+      width: 100%;
+      position: absolute;
+      left: 0;
+      z-index: 0;
+    }
+    .prism-current-line {
+      background: linear-gradient(90deg, #14532d 0%, #22c55e 100%);
+      opacity: 0.25;
+      display: block;
+      width: 100%;
+      position: absolute;
+      left: 0;
+      z-index: 1;
+    }
+    .array-box {
+      display: flex;
+      align-items: flex-end;
+      background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+      border-radius: 16px;
+      padding: 16px 12px 12px 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .array-cell {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 0 4px;
+      min-width: 40px;
+      text-align: center;
+      font-weight: 600;
+      color: #1a1a1a;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.2s ease;
+    }
+    .array-cell.active {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(59,130,246,0.4);
+    }
+    .array-cell.swap {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(16,185,129,0.4);
+    }
+    .array-index {
+      font-size: 11px;
+      color: #6b7280;
+      text-align: center;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    .array-label-row {
+      display: flex;
+      justify-content: flex-start;
+      margin-top: 2px;
+      margin-left: 4px;
+    }
+    .array-label-row .array-label {
+      min-width: 56px;
+      text-align: center;
+      font-size: 1rem;
+      color: #22c55e;
+      font-weight: 500;
+    }
+    .var-cards {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .var-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border: 2px solid #10b981;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin: 8px 0;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      transition: all 0.2s ease;
+    }
+    .var-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .var-card-label {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .var-group-label {
+      color: #22c55e;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+      margin-left: 2px;
+    }
+    .visual-block {
+      background: #000;
+      border-radius: 12px;
+      padding: 10px 10px 6px 10px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .visual-block + .visual-block {
+      margin-top: 8px;
+    }
+    .divider {
+      border-top: 1px solid #22c55e33;
+      margin: 8px 0 8px 0;
+    }
+    .code-line {
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .code-line.current {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+    }
+    .sidebar-section {
+      background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .control-button {
+      background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 8px 16px;
+      color: white;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .control-button:hover {
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .control-button:active {
+      transform: translateY(0);
+    }
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #374151 0%, #6b7280 100%);
+      outline: none;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+    .slider:hover {
+      opacity: 1;
+    }
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+    }
+    .slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #9ca3af;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .placeholder {
+      background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      border: 2px dashed rgba(255,255,255,0.1);
+      color: #6b7280;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .ai-explanation {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(59,130,246,0.3);
+      box-shadow: 0 8px 32px rgba(59,130,246,0.2);
+    }
+    .ai-title {
+      font-size: 12px;
+      color: #93c5fd;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .ai-content {
+      color: #dbeafe;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .var-changed {
+      border: 2px solid #38bdf8;
+      background: #0e2231;
+      box-shadow: 0 0 8px #38bdf8;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+  </style>
+  </head>
+<body class="h-screen flex main-container">
+    <div id="root"></div>
+
+  <!-- Left: Visualization Area -->
+  <div class="flex-grow flex items-center justify-center bg-black relative" id="visualizationArea">
+    <div class="placeholder" id="placeholder">
+      Code Output Placeholder
+    </div>
+  </div>
+
+  <!-- Right: Controls Panel -->
+  <aside class="w-96 bg-black p-6 border-l border-gray-700 space-y-6 overflow-y-auto">
+    <!-- Code Input Section -->
+    <div class="sidebar-section">
+      <div class="section-title">Code Input</div>
+      <textarea id="codeInput" class="w-full h-32 bg-gray-800 text-white p-3 rounded-lg border border-gray-600 resize-none font-mono text-sm" placeholder="Enter your code here...">print('Hello, World!')</textarea>
+      
+      <!-- Test Backend Button -->
+      <button class="control-button w-full mb-3" onclick="testBackend()" id="testBtn">
+        Test Backend Connection
+      </button>
+      
+      <!-- Run Code Button -->
+      <button class="control-button w-full" onclick="runCode()" id="runBtn">
+        Run Code
+      </button>
+    </div>
+
+    <!-- Language Selection Section -->
+    <div class="sidebar-section">
+      <div class="section-title">Language</div>
+      <div class="flex gap-2">
+        <button class="control-button flex-1" onclick="selectLang('python')" id="pythonBtn">Python</button>
+        <button class="control-button flex-1" onclick="selectLang('javascript')" id="javascriptBtn">JavaScript</button>
+        <button class="control-button flex-1" onclick="selectLang('cpp')" id="cppBtn">C++</button>
+      </div>
+    </div>
+
+    <!-- Examples Section -->
+    <div class="sidebar-section">
+      <div class="section-title">Examples</div>
+      <div class="space-y-2">
+        <button class="control-button w-full text-left" onclick="loadExample('hello')">Hello World</button>
+        <button class="control-button w-full text-left" onclick="loadExample('fibonacci')">Fibonacci</button>
+        <button class="control-button w-full text-left" onclick="loadExample('sort')">Bubble Sort</button>
+      </div>
+    </div>
+
+    <!-- Playback Controls Section -->
+    <div class="sidebar-section">
+      <div class="section-title">Playback Speed</div>
+      <input type="range" min="100" max="2000" value="1000" id="speedSlider" class="slider w-full mb-2">
+      <div class="text-center text-gray-400 text-sm">
+        Speed: <span id="speedValue">Normal</span>
+      </div>
+    </div>
+
+    <!-- Zoom Controls Section -->
+    <div class="sidebar-section">
+      <div class="section-title">Zoom</div>
+      <input type="range" min="0.5" max="2" step="0.1" value="1" id="zoomSlider" class="slider w-full mb-2">
+      <div class="text-center text-gray-400 text-sm">
+        Zoom: <span id="zoomValue">100%</span>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    // Global state
+    let currentStep = 0;
+    let totalSteps = 0;
+    let isPlaying = false;
+    let playbackInterval = null;
+    let executionResult = null;
+    let selectedLanguage = 'python';
+    let playbackSpeed = 1000;
+    let zoom = 1;
+
+    // Examples
+    const examples = {
+      'hello': {
+        python: "print('Hello, World!')\nname = 'Alice'\nprint(f'Hello, {name}!')",
+        javascript: "console.log('Hello, World!');\nlet name = 'Alice';\nconsole.log(`Hello, ${name}!`);",
+        cpp: "#include <iostream>\n#include <string>\nint main() {\n    std::cout << \"Hello, World!\" << std::endl;\n    std::string name = \"Alice\";\n    std::cout << \"Hello, \" << name << \"!\" << std::endl;\n    return 0;\n}"
+      },
+      'fibonacci': {
+        python: "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n\nresult = fibonacci(5)\nprint(f'Fibonacci(5) = {result}')",
+        javascript: "function fibonacci(n) {\n    if (n <= 1) return n;\n    return fibonacci(n-1) + fibonacci(n-2);\n}\n\nlet result = fibonacci(5);\nconsole.log(`Fibonacci(5) = ${result}`);",
+        cpp: "#include <iostream>\nint fibonacci(int n) {\n    if (n <= 1) return n;\n    return fibonacci(n-1) + fibonacci(n-2);\n}\n\nint main() {\n    int result = fibonacci(5);\n    std::cout << \"Fibonacci(5) = \" << result << std::endl;\n    return 0;\n}"
+      },
+      'sort': {
+        python: "def bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if arr[j] > arr[j+1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr\n\nnumbers = [64, 34, 25, 12, 22, 11, 90]\nprint(f'Original: {numbers}')\nsorted_numbers = bubble_sort(numbers.copy())\nprint(f'Sorted: {sorted_numbers}')",
+        javascript: "function bubbleSort(arr) {\n    let n = arr.length;\n    for (let i = 0; i < n; i++) {\n        for (let j = 0; j < n-i-1; j++) {\n            if (arr[j] > arr[j+1]) {\n                [arr[j], arr[j+1]] = [arr[j+1], arr[j]];\n            }\n        }\n    }\n    return arr;\n}\n\nlet numbers = [64, 34, 25, 12, 22, 11, 90];\nconsole.log(`Original: ${numbers}`);\nlet sortedNumbers = bubbleSort([...numbers]);\nconsole.log(`Sorted: ${sortedNumbers}`);",
+        cpp: "#include <iostream>\n#include <vector>\nvoid bubbleSort(std::vector<int>& arr) {\n    int n = arr.size();\n    for (int i = 0; i < n; i++) {\n        for (int j = 0; j < n-i-1; j++) {\n            if (arr[j] > arr[j+1]) {\n                std::swap(arr[j], arr[j+1]);\n            }\n        }\n    }\n}\n\nint main() {\n    std::vector<int> numbers = {64, 34, 25, 12, 22, 11, 90};\n    std::cout << \"Original: \";\n    for (int num : numbers) std::cout << num << \" \";\n    std::cout << std::endl;\n    bubbleSort(numbers);\n    std::cout << \"Sorted: \";\n    for (int num : numbers) std::cout << num << \" \";\n    std::cout << std::endl;\n    return 0;\n}"
+      }
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      updateSpeedDisplay();
+      updateZoomDisplay();
+      setupEventListeners();
+      checkBackendHealth();
+      
+      // Set default language button as active
+      selectLang('python');
+    });
+
+    async function checkBackendHealth() {
+      try {
+        const response = await fetch('http://localhost:8000/health');
+        if (response.ok) {
+          console.log('Backend is healthy and reachable');
+        } else {
+          console.warn('Backend health check failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Backend health check failed:', error);
+      }
+    }
+
+    async function testBackend() {
+      const testBtn = document.getElementById('testBtn');
+      if (testBtn) {
+        testBtn.textContent = 'Testing...';
+        testBtn.disabled = true;
+      }
+      
+      try {
+        console.log('Testing backend connection...');
+        const response = await fetch('http://localhost:8000/health');
+        console.log('Health check response:', response.status);
+        
+        if (response.ok) {
+          const healthData = await response.json();
+          console.log('Health data:', healthData);
+          showError('✅ Backend is connected and healthy!');
+        } else {
+          showError(`❌ Backend health check failed: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Backend test failed:', error);
+        showError(`❌ Backend connection failed: ${error.message}`);
+      } finally {
+        if (testBtn) {
+          testBtn.textContent = 'Test Backend Connection';
+          testBtn.disabled = false;
+        }
+      }
+    }
+
+    function setupEventListeners() {
+      document.getElementById('speedSlider').addEventListener('input', function(e) {
+        playbackSpeed = parseInt(e.target.value);
+        updateSpeedDisplay();
+      });
+
+      document.getElementById('zoomSlider').addEventListener('input', function(e) {
+        zoom = parseFloat(e.target.value);
+        updateZoomDisplay();
+        updateVisualization();
+      });
+
+      // Add event handler for step slider to prevent page refresh
+      const stepSlider = document.getElementById('stepSlider');
+      if (stepSlider) {
+        stepSlider.addEventListener('input', function(e) {
+          e.preventDefault();
+          currentStep = parseInt(e.target.value);
+          updateVisualization();
+          updateStepDisplay();
+        });
+      }
+    }
+
+    function updateSpeedDisplay() {
+      const speedText = playbackSpeed <= 500 ? 'Fast' : playbackSpeed <= 1000 ? 'Normal' : 'Slow';
+      const speedElement = document.getElementById('speedValue');
+      if (speedElement) {
+        speedElement.textContent = speedText;
+      }
+    }
+
+    function updateZoomDisplay() {
+      const zoomElement = document.getElementById('zoomValue');
+      if (zoomElement) {
+        zoomElement.textContent = Math.round(zoom * 100) + '%';
+      }
+    }
+
+    function selectLang(lang) {
+      selectedLanguage = lang;
+      
+      // Update button styles - use more specific selectors
+      const pythonBtn = document.getElementById('pythonBtn');
+      const javascriptBtn = document.getElementById('javascriptBtn');
+      const cppBtn = document.getElementById('cppBtn');
+      
+      // Reset all buttons to gray
+      if (pythonBtn) pythonBtn.classList.remove('bg-blue-600');
+      if (javascriptBtn) javascriptBtn.classList.remove('bg-blue-600');
+      if (cppBtn) cppBtn.classList.remove('bg-blue-600');
+      
+      // Add blue class to selected button
+      if (lang === 'python' && pythonBtn) {
+        pythonBtn.classList.add('bg-blue-600');
+      } else if (lang === 'javascript' && javascriptBtn) {
+        javascriptBtn.classList.add('bg-blue-600');
+      } else if (lang === 'cpp' && cppBtn) {
+        cppBtn.classList.add('bg-blue-600');
+      }
+      
+      const codeInput = document.getElementById('codeInput');
+      if (lang === 'python') {
+        if (codeInput) {
+          codeInput.value = "print('Hello, World!')";
+        }
+      } else if (lang === 'javascript') {
+        if (codeInput) {
+          codeInput.value = "console.log('Hello, World!');";
+        }
+      } else if (lang === 'cpp') {
+        if (codeInput) {
+          codeInput.value = "#include<iostream>\nint main() { std::cout << \"Hello, World!\" << std::endl; return 0; }";
+        }
+      }
+      
+      // Update visualization if there's an execution result
+      if (executionResult && executionResult.status === 'success') {
+        updateVisualization();
+      }
+    }
+
+    function toggleExamples() {
+      const dropdown = document.getElementById('examplesDropdown');
+      const btn = document.getElementById('examplesBtn');
+      if (dropdown.classList.contains('hidden')) {
+        dropdown.classList.remove('hidden');
+        btn.textContent = 'Hide Examples';
+      } else {
+        dropdown.classList.add('hidden');
+        btn.textContent = 'View Example Codes';
+      }
+    }
+
+    function loadExample(exampleKey) {
+      if (!examples[exampleKey]) {
+        console.error(`Example '${exampleKey}' not found`);
+        return;
+      }
+      
+      const code = examples[exampleKey][selectedLanguage];
+      const codeInput = document.getElementById('codeInput');
+      if (codeInput) {
+        codeInput.value = code;
+        console.log(`Loaded example: ${exampleKey} for ${selectedLanguage}`);
+      }
+    }
+
+    async function runCode() {
+      const codeInput = document.getElementById('codeInput');
+      if (!codeInput) {
+        showError('Code input element not found');
+        return;
+      }
+      
+      const code = codeInput.value;
+      const runBtn = document.getElementById('runBtn');
+      if (runBtn) {
+        runBtn.textContent = 'Running...';
+        runBtn.disabled = true;
+      }
+      
+      try {
+        console.log('Attempting to connect to backend...');
+        const response = await fetch('http://localhost:8000/execute', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ code, timeout: 30 })
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Backend response:', result);
+        executionResult = result;
+        
+        if (result.status === 'success') {
+          totalSteps = result.steps.length;
+          currentStep = 0;
+          updateVisualization();
+          updateStepDisplay();
+          console.log(`Successfully loaded ${totalSteps} steps`);
+        } else {
+          showError(result.error?.message || 'Execution failed');
+        }
+      } catch (error) {
+        console.error('Backend connection error:', error);
+        showError(`Failed to connect to backend: ${error.message}. Make sure the backend server is running on port 8000.`);
+      } finally {
+        if (runBtn) {
+          runBtn.textContent = 'Run Code';
+          runBtn.disabled = false;
+        }
+      }
+    }
+
+    function updateVisualization() {
+      const area = document.getElementById('visualizationArea');
+      const placeholder = document.getElementById('placeholder');
+      
+      if (!executionResult || executionResult.status !== 'success') {
+        area.innerHTML = '<div class="placeholder" id="placeholder">Code Output Placeholder</div>';
+        return;
+      }
+
+      const step = executionResult.steps[currentStep];
+      if (!step) return;
+
+      const variables = step.variables || {};
+      const variableCards = Object.entries(variables).map(([name, value]) => 
+        `<div class="var-card">
+          <div class="var-card-label">${name}</div>
+          <div class="variable-value">${JSON.stringify(value)}</div>
+        </div>`
+      ).join('');
+
+      const progress = ((currentStep + 1) / totalSteps) * 100;
+      
+      // Get the original code and highlight the current line using Prism
+      const codeInput = document.getElementById('codeInput');
+      if (!codeInput) {
+        console.warn('Code input element not found');
+        return;
+      }
+      
+      const originalCode = codeInput.value;
+      const codeLines = originalCode.split('\n');
+      const currentLineNumber = step.line - 1; // 0-based
+      let codeWithLineHighlight = codeLines.map((line, idx) => {
+        // Add a span to the current line for highlighting
+        if (idx === currentLineNumber) {
+          return `<span class="prism-current-line">${line || '&nbsp;'}</span>`;
+        } else {
+          return line || '&nbsp;';
+        }
+      }).join('\n');
+      // Prism expects raw code, so remove the highlight span for highlighting, then add it after
+      const codeForPrism = codeLines.join('\n');
+
+      // --- Variable Visualization Rendering ---
+      function renderVariableVisuals(step) {
+        if (!step) return '';
+        let html = '';
+        // Scalars
+        html += `<div class="section-title">SCALAR VARIABLES</div><div class="flex flex-wrap gap-2 mb-4">`;
+        for (const [name, value] of Object.entries(step.scalars || {})) {
+          const isChanged = (step.changed || []).includes(name);
+          html += `<div class="var-box${isChanged ? ' var-changed' : ''}"><span class="var-name">${name}</span> = <span class="var-value">${value}</span></div>`;
+        }
+        html += '</div>';
+        // Arrays
+        html += `<div class="section-title">ARRAYS</div><div class="flex flex-wrap gap-2 mb-4">`;
+        for (const [name, value] of Object.entries(step.arrays || {})) {
+          const isChanged = (step.changed || []).includes(name);
+          html += `<div class="var-box${isChanged ? ' var-changed' : ''}"><span class="var-name">${name}</span> = <span class="var-value">${JSON.stringify(value)}</span></div>`;
+        }
+        html += '</div>';
+        return html;
+      }
+
+      // Add animation CSS
+      if (!document.getElementById('flash-anim-style')) {
+        const style = document.createElement('style');
+        style.id = 'flash-anim-style';
+        style.innerHTML = `
+          .animate-flash {
+            animation: flash-bg 0.7s;
+          }
+          @keyframes flash-bg {
+            0% { background: #facc15; color: #000; }
+            100% { background: inherit; color: inherit; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // AI Explanation generator for each step (friendly tone)
+      function generateAIExplanation(step) {
+        if (!step || !step.line || !step.code) return '';
+        const code = step.code.trim();
+        if (code.startsWith('for ')) {
+          return "Hey! We're starting a loop here. Let's go through each item together.";
+        } else if (code.startsWith('if ')) {
+          return "Looks like we're checking a condition. Let's see if it holds true!";
+        } else if (code.includes('=')) {
+          const [left, right] = code.split('=');
+          return `I'm assigning <span class='font-mono text-blue-400'>${left.trim()}</span> to <span class='font-mono text-green-400'>${right.trim()}</span>. Nice and easy!`;
+        } else if (code.startsWith('print')) {
+          return "Time to print something out! Let's see what shows up in the output.";
+        } else if (code.startsWith('def ')) {
+          return "We're defining a function here. This creates a reusable block of code!";
+        } else if (code.includes('return')) {
+          return "We're returning a value from this function. This sends data back to where the function was called.";
+        } else if (code.includes('len(')) {
+          return "We're getting the length of something. This tells us how many items we're working with.";
+        } else if (code.includes('arr[')) {
+          return "We're accessing an element in the array. Arrays store multiple values that we can access by position.";
+        } else if (code.includes('temp')) {
+          return "We're using a temporary variable to store a value. This is often used in swap operations!";
+        } else {
+          return "This step is part of our algorithm. We're making progress toward our goal!";
+        }
+      }
+
+      // In updateVisualization, replace variableBoxes with:
+      const variableBoxes = renderVariableVisuals(step);
+
+      // AI Explanation - start with loading state
+      let aiExplanation = 'Loading AI explanation...';
+      
+      // Generate AI explanation asynchronously
+      aiExplanation = generateAIExplanation(step);
+
+      // Step indicator bar rendering
+      // function renderStepBar(currentStep, totalSteps) {
+      //   if (!totalSteps || totalSteps < 2) return '';
+      //   return `
+      //     <div class="flex justify-center items-center gap-2 mb-4">
+      //       ${Array.from({length: totalSteps}, (_, i) => `
+      //         <button class="w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-lg transition-all duration-200
+      //           ${i === currentStep ? 'bg-blue-500 border-blue-700 text-white scale-110 shadow-lg' : i < currentStep ? 'bg-green-500 border-green-700 text-white' : 'bg-gray-700 border-gray-500 text-gray-300'}"
+      //           style="outline:none;cursor:pointer;" onclick="jumpToStep(${i})">
+      //           ${i + 1}
+      //         </button>
+      //       `).join('')}
+      //     </div>
+      //   `;
+      // }
+
+      // Remove stepBar variable and its usage
+      // const stepBar = renderStepBar(currentStep, totalSteps);
+
+      area.innerHTML = `
+        <div class="w-full max-w-6xl p-6 space-y-6">
+          <!-- Code Display -->
+          <div class="code-display">
+            <div class="section-title">Source Code</div>
+            <div class="code-display" id="codeDisplay">
+              <pre style="margin:0;"><code class="language-python" id="prismCodeBlock"></code></pre>
+            </div>
+          </div>
+          
+          <!-- Step Bar -->
+          <div id="stepBar"></div>
+          
+          <!-- Variables Visualization -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Arrays Section -->
+            <div class="sidebar-section">
+              <div class="section-title">Arrays</div>
+              <div id="arraysContainer"></div>
+            </div>
+            
+            <!-- Scalars Section -->
+            <div class="sidebar-section">
+              <div class="section-title">Scalar Variables</div>
+              <div id="scalarsContainer"></div>
+            </div>
+          </div>
+          
+          <!-- AI Explanation -->
+          <div id="aiExplanationBox" class="ai-explanation">
+            <div class="ai-title">AI Assistant</div>
+            <div class="ai-content">${aiExplanation}</div>
+          </div>
+
+          <!-- Step Navigation Controls -->
+          <div class="sidebar-section mt-6">
+            <div class="section-title">Step Navigation</div>
+            <div class="mb-3">
+              <input type="range" min="0" max="${totalSteps - 1}" value="${currentStep}" id="stepSlider" class="slider w-full">
+            </div>
+            <div class="flex items-center gap-2 mb-2">
+              <button class="control-button" id="prevBtn" onclick="prevStep()" aria-label="Previous Step">
+                <svg xmlns="http://www.w3.org/2000/svg" class="inline w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div class="flex-1 text-center text-gray-300">
+                Step <span class="font-bold" id="currentStep">${currentStep + 1}</span> / <span id="totalSteps">${totalSteps}</span>
+              </div>
+              <button class="control-button" id="nextBtn" onclick="nextStep()" aria-label="Next Step">
+                <svg xmlns="http://www.w3.org/2000/svg" class="inline w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+            <div class="flex gap-2">
+              <button class="control-button flex-1" id="playBtn" onclick="togglePlayback()" aria-label="Play/Pause">
+                <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="inline w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><polygon points="5,3 19,10 5,17"/></svg>
+                <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="inline w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><rect x="6" y="4" width="3" height="12"/><rect x="11" y="4" width="3" height="12"/></svg>
+              </button>
+              <button class="control-button flex-1" onclick="resetPlayback()" aria-label="Reset">
+                <svg xmlns="http://www.w3.org/2000/svg" class="inline w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M19.418 19A9 9 0 105.582 5" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      // Use Prism to highlight
+      setTimeout(() => {
+        const codeBlock = document.getElementById('prismCodeBlock');
+        if (codeBlock) {
+          codeBlock.textContent = codeForPrism;
+          Prism.highlightElement(codeBlock);
+          // Now add highlight to the current line
+          const htmlLines = codeBlock.innerHTML.split('\n');
+          if (htmlLines.length > currentLineNumber) {
+            htmlLines[currentLineNumber] = `<span class='prism-current-line'>${htmlLines[currentLineNumber] || '&nbsp;'}</span>`;
+            codeBlock.innerHTML = htmlLines.join('\n');
+          }
+        }
+        // Step slider event
+        const slider = document.getElementById('stepSlider');
+        if (slider) {
+          slider.oninput = function(e) {
+            currentStep = parseInt(e.target.value);
+            updateVisualization();
+            updateStepDisplay();
+          };
+        }
+      }, 50);
+      // Add fade-in and speech bubble styles
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .fade-in { animation: fadeIn 0.7s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .ai-speech-bubble { position: relative; }
+        .ai-ellipsis { display: inline-block; width: 1.5em; text-align: left; animation: ellipsisAnim 1.2s infinite steps(4, end); }
+        @keyframes ellipsisAnim { 0%, 100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+      `;
+      document.head.appendChild(style);
+    }
+
+    function showError(message) {
+      const area = document.getElementById('visualizationArea');
+      area.innerHTML = `
+        <div class="text-center">
+          <div class="text-6xl mb-4">❌</div>
+          <h3 class="text-2xl font-bold text-red-400 mb-2">Execution Error</h3>
+          <p class="text-gray-300">${message}</p>
+        </div>
+      `;
+    }
+
+    function updateStepDisplay() {
+      const currentStepElement = document.getElementById('currentStep');
+      const totalStepsElement = document.getElementById('totalSteps');
+      const sliderStepElement = document.getElementById('sliderStep');
+      
+      if (currentStepElement) {
+        currentStepElement.textContent = currentStep + 1;
+      }
+      if (totalStepsElement) {
+        totalStepsElement.textContent = totalSteps;
+      }
+      if (sliderStepElement) {
+        sliderStepElement.textContent = currentStep + 1; // Update slider step
+      }
+      
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const playBtn = document.getElementById('playBtn');
+
+      if (prevBtn) {
+        prevBtn.disabled = currentStep === 0;
+      }
+      if (nextBtn) {
+        nextBtn.disabled = currentStep >= totalSteps - 1;
+      }
+      if (playBtn) {
+        playBtn.disabled = totalSteps === 0;
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 0) {
+        currentStep--;
+        updateVisualization();
+        updateStepDisplay();
+      }
+    }
+
+    function nextStep() {
+      if (currentStep < totalSteps - 1) {
+        currentStep++;
+        updateVisualization();
+        updateStepDisplay();
+      }
+    }
+
+    function togglePlayback() {
+      if (isPlaying) {
+        clearInterval(playbackInterval);
+        isPlaying = false;
+        const playBtn = document.getElementById('playBtn');
+        if (playBtn) {
+          playBtn.textContent = '⏸️';
+        }
+      } else {
+        if (currentStep < totalSteps - 1) {
+          isPlaying = true;
+          const playBtn = document.getElementById('playBtn');
+          if (playBtn) {
+            playBtn.textContent = '▶️';
+          }
+          playbackInterval = setInterval(() => {
+            if (currentStep < totalSteps - 1) {
+              currentStep++;
+              updateVisualization();
+              updateStepDisplay();
+            } else {
+              clearInterval(playbackInterval);
+              isPlaying = false;
+              const playBtn = document.getElementById('playBtn');
+              if (playBtn) {
+                playBtn.textContent = '▶️';
+              }
+            }
+          }, playbackSpeed);
+        }
+      }
+    }
+
+    function startPlayback() {
+      if (totalSteps === 0 || currentStep >= totalSteps - 1) return;
+      
+      isPlaying = true;
+      document.getElementById('playBtn').textContent = '⏸️';
+      
+      playbackInterval = setInterval(() => {
+        if (currentStep < totalSteps - 1) {
+          currentStep++;
+          updateVisualization();
+          updateStepDisplay();
+        } else {
+          stopPlayback();
+        }
+      }, playbackSpeed);
+    }
+
+    function stopPlayback() {
+      isPlaying = false;
+      document.getElementById('playBtn').textContent = '▶️';
+      if (playbackInterval) {
+        clearInterval(playbackInterval);
+        playbackInterval = null;
+      }
+    }
+
+    function resetPlayback() {
+      stopPlayback();
+      currentStep = 0;
+      updateVisualization();
+      updateStepDisplay();
+    }
+  </script>
+
+  </body>
+</html>
+
